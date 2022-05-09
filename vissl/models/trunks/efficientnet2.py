@@ -16,6 +16,7 @@ from classy_vision.models.efficientnet import (
 
 from vissl.config import AttrDict
 from vissl.models.model_helpers import Flatten, Wrap, parse_out_keys_arg
+
 from vissl.models.trunks import register_model_trunk
 
 MODEL_PARAMS = {
@@ -64,7 +65,7 @@ MODEL_PARAMS = {
 @register_model_trunk("efficientnet2")
 class EfficientNet2(nn.Module):
     """
-    Wrapper for ClassyVision EfficientNet model so we can map layers into feature
+    Wrapper for ClassyVision EfficientNet2 model so we can map layers into feature
     blocks to facilitate feature extraction and benchmarking at several layers.
     """
 
@@ -73,7 +74,7 @@ class EfficientNet2(nn.Module):
         assert model_config.INPUT_TYPE in ["rgb", "bgr"], "Input type not supported"
 
         trunk_config = model_config.TRUNK.EFFICIENT_NETS
-        assert "model_version" in trunk_config, "Please specify EfficientNet version"
+        assert "model_version" in trunk_config, "Please specify EfficientNet2 version"
         model_version = trunk_config["model_version"]
         model_params = MODEL_PARAMS[model_version]
 
@@ -83,6 +84,7 @@ class EfficientNet2(nn.Module):
         # to build the model in Classy Vision hence we pass the default value.
         trunk_config["num_classes"] = 1000
         logging.info(f"Building model: EfficientNet-{model_version}")
+        if trunk_config.
         model = ClassyEfficientNet(**trunk_config)
 
         self.drop_connect_rate = model.drop_connect_rate
