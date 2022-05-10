@@ -285,7 +285,9 @@ def effnetv2_xl(**kwargs):
     return EffNetV2(cfgs, **kwargs)
 model_options ={
     "s": effnetv2_s,
-    "m": effnetv2_m
+    "m": effnetv2_m,
+    "l": effnetv2_l,
+    "xl": effnetv2_xl,
 
 }
 
@@ -312,81 +314,35 @@ class EfficientNet2(nn.Module):
         trunk_config["num_classes"] = 1000
         logging.info(f"Building model: EfficientNet-{model_version}")
         model = model_options[model_version]()
-        self.drop_connect_rate = model.drop_connect_rate
-        self.num_blocks = len(model.blocks)
-        self.dropout = model.dropout
-        self.activation = Wrap(model.relu_fn)  # using swish, not relu actually
+        print(model)
+        #self.drop_connect_rate = model.drop_connect_rate
+        #self.dropout = model.dropout
+        #self.activation = Wrap(model.relu_fn)  # using swish, not relu actually
 
         # We map the layers of model into feature blocks to facilitate
         # feature extraction at various layers of the model. The layers for which
         # to extract features is controlled by out_feat_keys argument in the
         # forward() call.
         # - Stem
-        feature_blocks = [
-            ["conv1", nn.Sequential(model.conv_stem, model.bn0, self.activation)]
-        ]
+        self.feature_blocks = model.features
+        self.last_conv = model.conv
+        self.pooling = model.avgpool
 
         # - Mobile Inverted Residual Bottleneck blocks
-        feature_blocks.extend(
-            [[f"block{i}", v] for i, v in enumerate(model.blocks.children())]
-        )
-
-        # - Conv Head + Pooling
-        feature_blocks.extend(
-            [
-                [
-                    "conv_final",
-                    nn.Sequential(model.conv_head, model.bn1, self.activation),
-                ],
-                ["avgpool", model.avg_pooling],
-                ["flatten", Flatten(1)],
-            ]
-        )
-
-        if model.dropout:
-            feature_blocks.append(["dropout", model.dropout])
+        #feature_blocks.extend(
+        #    [[f"block{i}", v] for i, v in enumerate(model.blocks.children())]
+        #)
 
         # Consolidate into one indexable trunk
-        self._feature_blocks = nn.ModuleDict(feature_blocks)
-        self.all_feat_names = list(self._feature_blocks.keys())
+        #self._feature_blocks = nn.ModuleDict(feature_blocks)
+        #self.all_feat_names = list(self._feature_blocks.keys())
 
     def forward(self, x: torch.Tensor, out_feat_keys: List[str] = None):
-        out_feat_keys, max_out_feat = parse_out_keys_arg(
-            out_feat_keys, self.all_feat_names
-        )
-        out_feats = [None] * len(out_feat_keys)
-        feat = x
-
-        # Walk through the EfficientNet, block by block
-        blocks = iter(self._feature_blocks.named_children())
-
-        # - First block is always the stem
-        stem_name, stem_block = next(blocks)
-        feat = stem_block(feat)
-        if stem_name in out_feat_keys:
-            out_feats[out_feat_keys.index(stem_name)] = feat
-
-        # - Next go through all the MIRB, then the eventual conv and pooling
-        for i, (feature_name, feature_block) in enumerate(blocks):
-            if "block" in feature_name:
-                # -- MIRB blocks (needs ad-hoc drop connect rate)
-                drop_connect_rate = self.drop_connect_rate
-                if self.drop_connect_rate:
-                    drop_connect_rate *= float(i) / self.num_blocks
-                feat = feature_block(feat, drop_connect_rate=drop_connect_rate)
-            else:
-                # -- Conv, Pooling (simple forward)
-                feat = feature_block(feat)
-
-            # If requested, store the feature
-            if feature_name in out_feat_keys:
-                out_feats[out_feat_keys.index(feature_name)] = feat
-
-            # Early exit if all the features have been collected
-            if i == max_out_feat:
-                break
-
-        return out_feats
+        x = self.feature_blocks(x)
+        x = self.last_conv(x)
+        x = self.pooling(x)
+        x = x.view(x.size(0), -1)
+        return [x]
 
 if __name__ == "__main__":
     model = EfficientNet2(*{'model_config':"B", 'model_name':"Eff2" })

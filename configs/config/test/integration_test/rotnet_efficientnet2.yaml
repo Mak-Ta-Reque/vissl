@@ -63,10 +63,10 @@ config:
         #min_width: null
         #use_se: True
     HEAD:
-      PARAMS: [["mlp", {"dims": [1280, 4]}]]
-    SYNC_BN_CONFIG:
-      CONVERT_BN_TO_SYNC_BN: True
-      SYNC_BN_TYPE: pytorch
+      PARAMS: [["mlp", {"dims": [1792, 4]}]]
+    #SYNC_BN_CONFIG:
+    # CONVERT_BN_TO_SYNC_BN: True
+    # SYNC_BN_TYPE: pytorch
 
   LOSS:
       name: cross_entropy_multiple_output_single_target
