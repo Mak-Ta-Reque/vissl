@@ -1,1 +1,1 @@
-{"dummy_data_folder": {"train": ["/content/dummy_data/train", "/content/dummy_data/train"], "val": ["/content/dummy_data/val", "/content/dummy_data/val"]}}
+{"dummy_data_folder": {"train": ["/netscratch/kadir/content/dummy_data/train", "/content/dummy_data/train"], "val": ["/netscratch/kadir/content/dummy_data/val", "/content/dummy_data/val"]}}
