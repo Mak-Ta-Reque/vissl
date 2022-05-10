@@ -4,7 +4,7 @@ config:
   VERBOSE: False
   LOG_FREQUENCY: 100
   TEST_ONLY: False
-  TEST_EVERY_NUM_EPOCH: 5
+  TEST_EVERY_NUM_EPOCH: 1
   TEST_MODEL: True
   SEED_VALUE: 1
   MULTI_PROCESSING_METHOD: forkserver
@@ -16,7 +16,7 @@ config:
     TRAIN:
       DATA_SOURCES: [disk_folder]
       DATASET_NAMES: [imagenet1k_folder]
-      BATCHSIZE_PER_REPLICA: 32
+      BATCHSIZE_PER_REPLICA: 2
       TRANSFORMS:
         - name: ImgRotatePil
         - name: RandomResizedCrop
@@ -31,7 +31,7 @@ config:
     TEST:
       DATA_SOURCES: [disk_folder]
       DATASET_NAMES: [imagenet1k_folder]
-      BATCHSIZE_PER_REPLICA: 32
+      BATCHSIZE_PER_REPLICA: 2
       TRANSFORMS:
         - name: ImgRotatePil
         - name: Resize
@@ -99,5 +99,5 @@ config:
     DEVICE: gpu
   CHECKPOINT:
     DIR: "."
-    AUTO_RESUME: False
+    AUTO_RESUME: True
     CHECKPOINT_FREQUENCY: 1
