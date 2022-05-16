@@ -1,1 +1,1 @@
-{"imagenet_data_folder": {"train": ["/ds/images/imagenet/train", "/ds/images/imagenet/train"], "val": ["/ds/images/imagenet/val_folders", "/ds/images/imagenet/val_folders"]}}
+{"dummy_data_folder": {"train": ["/netscratch/kadir/content/dummy_data/train", "/netscratch/kadir/content/dummy_data/train"], "val": ["/netscratch/kadir/content/dummy_data/val", "/netscratch/kadir/content/dummy_data/val"]}}

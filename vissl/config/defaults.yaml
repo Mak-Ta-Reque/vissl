@@ -940,8 +940,6 @@ config:
     # ----------------------------------------------------------------------------------- #
     CrossEntropyLoss:
       ignore_index: -1
-
-    # ----------------------------------------------------------------------------------- #
     # Cross-Entropy Loss for multiple outputs and same target. For a single
     # output, this is equivalent to the cross-entropy loss. For multiple
     # outputs, this computes the sum of the cross-entropy losses for each
@@ -1102,10 +1100,19 @@ config:
     # ----------------------------------------------------------------------------------- #
     #  Barlow Twins Loss (https://arxiv.org/abs/2103.03230v1)
     # ----------------------------------------------------------------------------------- #
+    image_reconstruction_loss:
+      reduction: "none"
+
+    # ----------------------------------------------------------------------------------- #
+    #  Autoencoder Loss (https://arxiv.org/abs/2103.03230v1)
+    # ----------------------------------------------------------------------------------- #
     barlow_twins_loss:
       lambda_: 0.0051
       scale_loss: 0.024
       embedding_dim: 8192
+
+
+    
 
   # ----------------------------------------------------------------------------------- #
   # OPTIMIZER
