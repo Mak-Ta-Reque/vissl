@@ -60,14 +60,16 @@ config:
   MODEL:
     FEATURE_EVAL_SETTINGS:
       EVAL_MODE_ON: True
-      EVAL_TRUNK_AND_HEAD: False
+      EVAL_TRUNK_AND_HEAD: True
     TRUNK:
-      NAME: resnet
-      RESNETS:
-        DEPTH: 50
+      NAME: unet
+      UNET:
+        n_channels: 3
+        n_classes: 1
+        bilinear: True
     HEAD:
       PARAMS: [
-        ["mlp", {"dims": [2048, 1000]}],
+        ["unet_head", {n_classes: 1}]
       ]
   LOSS:
     name: cross_entropy_multiple_output_single_target
