@@ -28,6 +28,8 @@ config:
       COPY_TO_LOCAL_DISK: False
       COPY_DESTINATION_DIR: /tmp/imagenet1k/
       DATA_LIMIT: 4
+      COLLATE_FUNCTION: mask_collator
+      COLLATE_FUNCTION_PARAMS: {"transform": None, "mask_size": "(224, 224)"} 
     TEST:
       DATA_SOURCES: [disk_filelist]
       LABEL_SOURCES: [disk_maskfilelist]
@@ -44,6 +46,8 @@ config:
       COPY_TO_LOCAL_DISK: False
       COPY_DESTINATION_DIR: /tmp/imagenet1k/
       DATA_LIMIT: 4
+      COLLATE_FUNCTION: mask_collator
+      COLLATE_FUNCTION_PARAMS: {"transform": None, "mask_size": "(224, 224)"} 
   METERS:
     names: ["accuracy_list_meter"]
     accuracy_list_meter:
