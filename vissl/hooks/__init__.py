@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from enum import Enum, auto
+from enum import auto, Enum
 from typing import List
 
 from classy_vision.hooks.classy_hook import ClassyHook
@@ -12,6 +12,7 @@ from vissl.hooks.deepclusterv2_hooks import ClusterMemoryHook, InitMemoryHook  #
 from vissl.hooks.dino_hooks import DINOHook
 from vissl.hooks.ema_hooks import EmaHook
 from vissl.hooks.grad_clip_hooks import GradClipHook  # noqa
+from vissl.hooks.ibot_hooks import IBOTHook
 from vissl.hooks.log_hooks import (  # noqa
     DumpMemoryOnException,
     LogGpuMemoryHook,
@@ -30,8 +31,10 @@ from vissl.hooks.state_update_hooks import (  # noqa
     SetDataSamplerEpochHook,
     SSLModelComplexityHook,
 )
-from vissl.hooks.swav_hooks import NormalizePrototypesHook  # noqa
-from vissl.hooks.swav_hooks import SwAVUpdateQueueScoresHook  # noqa
+from vissl.hooks.swav_hooks import (  # noqa  # noqa
+    NormalizePrototypesHook,
+    SwAVUpdateQueueScoresHook,
+)
 from vissl.hooks.swav_momentum_hooks import (
     SwAVMomentumHook,
     SwAVMomentumNormalizePrototypesHook,
@@ -74,6 +77,8 @@ def add_loss_hooks(hooks, loss_cfg, cfg):
         )
     if cfg.LOSS.name == "dino_loss":
         hooks.append(DINOHook())
+    if cfg.LOSS.name in {"ibot_loss"}:
+        hooks.append(IBOTHook())
     if cfg.LOSS.name == "deepclusterv2_loss":
         hooks.extend([InitMemoryHook(), ClusterMemoryHook()])
     if cfg.LOSS.name == "moco_loss":

@@ -3,17 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-import logging
-import math
-
 import torch
 from classy_vision import tasks
 from classy_vision.hooks.classy_hook import ClassyHook
-from torch import nn
-from torch.nn.parallel import DistributedDataParallel
-from vissl.models import build_model
-from vissl.models.model_helpers import get_no_ddp_model
-from vissl.utils.fsdp_utils import fsdp_recursive_reset_lazy_init, fsdp_wrapper
+from vissl.hooks.hook_utils import MomentumTeacherInLossHook
 
 
 class DINOHook(ClassyHook):
@@ -39,83 +32,11 @@ class DINOHook(ClassyHook):
         self.teacher_temp_schedule = None
         self.momentum_schedule = None
 
-    def _build_momentum_network(self, task: tasks.ClassyTask) -> None:
-        """
-        Create the teacher: it is an exponential moving average of the student.
-        """
-        logging.info("Building momentum encoder")
-        is_fsdp_model = "fsdp" in task.config.MODEL.TRUNK.NAME
-
-        # Same architecture but do not apply stochastic depth
-        # TODO: make drop_path_rate configurable for teacher
+    @staticmethod
+    def _build_momentum_network(task: tasks.ClassyTask) -> None:
+        # Same architecture as student but do not apply stochastic depth
         task.config["MODEL"]["TRUNK"]["VISION_TRANSFORMERS"]["DROP_PATH_RATE"] = 0.0
-        task.loss.momentum_teacher = build_model(
-            task.config["MODEL"], task.config["OPTIMIZER"]
-        )
-        task.loss.momentum_teacher.to(task.device)
-
-        if not is_fsdp_model:
-            # Restore an hypothetical checkpoint
-            if task.loss.checkpoint is not None:
-                task.loss.load_state_dict(task.loss.checkpoint)
-            # Else initialize from the student model
-            else:
-                task_model = get_no_ddp_model(task.model)
-                teacher_model = get_no_ddp_model(task.loss.momentum_teacher)
-                teacher_model.load_state_dict(task_model.state_dict())
-
-        # Setup SyncBN (useful for the XCiT)
-        task.loss.momentum_teacher = nn.SyncBatchNorm.convert_sync_batchnorm(
-            task.loss.momentum_teacher
-        )
-
-        # Wrap with DDP (needed for SyncBN) or FSDP
-        if is_fsdp_model:
-            fsdp_config = task.config["MODEL"]["FSDP_CONFIG"]
-            task.loss.momentum_teacher = fsdp_wrapper(
-                task.loss.momentum_teacher, **fsdp_config
-            )
-        else:
-            task.loss.momentum_teacher = DistributedDataParallel(
-                task.loss.momentum_teacher, device_ids=[task.device]
-            )
-
-        if is_fsdp_model:
-            # Restore an hypothetical checkpoint
-            if task.loss.checkpoint is not None:
-                task.loss.load_state_dict(task.loss.checkpoint)
-            else:
-                # Else initialize from the student model
-                task_model = task.base_model
-                teacher_model = task.loss.momentum_teacher
-                teacher_model.load_local_state_dict(task_model.local_state_dict())
-            fsdp_recursive_reset_lazy_init(task.loss.momentum_teacher)
-
-        # no gradients for teacher model
-        for p in task.loss.momentum_teacher.parameters():
-            p.requires_grad = False
-
-    @torch.no_grad()
-    def _update_momentum_network(self, task: tasks.ClassyTask) -> None:
-        """
-        EMA update
-        Each teacher parameter becomes a weighted average of its old self and the
-        newest student.
-        """
-        # Cosine schedule for the teacher momentum
-        m = 1 - 0.5 * (1 - task.loss.loss_config.momentum) * (
-            math.cos(math.pi * task.iteration / task.max_iteration) + 1
-        )
-        task.additional_log_data["dino_teacher_momentum"] = m
-
-        task_model = get_no_ddp_model(task.model)
-        teacher_model = get_no_ddp_model(task.loss.momentum_teacher)
-
-        # EMA update for the teacher parameters
-        for param_q, param_k in zip(
-            task_model.parameters(), teacher_model.parameters()
-        ):
-            param_k.data.mul_(m).add_((1 - m) * param_q.detach().data)
+        MomentumTeacherInLossHook.build_momentum_network(task, config=task.config)
 
     @torch.no_grad()
     def update_teacher_temperature(self, task: tasks.ClassyTask) -> None:
@@ -163,4 +84,8 @@ class DINOHook(ClassyHook):
 
     @torch.no_grad()
     def on_update(self, task: "tasks.ClassyTask") -> None:
-        self._update_momentum_network(task)
+        MomentumTeacherInLossHook.update_momentum_network(
+            task,
+            init_teacher_momentum=task.loss.teacher_momentum,
+            with_cosine_schedule=True,
+        )

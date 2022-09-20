@@ -74,7 +74,7 @@ class SVMTrainer(object):
             base = self.config["costs"]["base"]
             start_num, end_num = self.config["costs"]["power_range"]
             for num in range(start_num, end_num):
-                costs_list.append(base ** num)
+                costs_list.append(base**num)
         self.costs_list = costs_list
         logging.info("Training SVM for costs: {}".format(costs_list))
         return costs_list
@@ -96,7 +96,7 @@ class SVMTrainer(object):
 
     def get_best_cost_value(self):
         """
-        During the SVM training, we write the cross vaildation
+        During the SVM training, we write the cross validation
         AP value for training at each class and cost value
         combination. We load the AP values and for each
         class, determine the cost value that gives the maximum

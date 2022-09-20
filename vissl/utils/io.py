@@ -8,6 +8,7 @@ import logging
 import os
 import pickle
 import re
+import shutil
 import time
 from urllib.parse import urlparse
 
@@ -15,7 +16,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from iopath.common.download import download
-from iopath.common.file_io import g_pathmgr, file_lock
+from iopath.common.file_io import file_lock, g_pathmgr
 from vissl.utils.slurm import get_slurm_dir
 
 
@@ -190,9 +191,9 @@ def cleanup_dir(dir):
     Utility for deleting a directory. Useful for cleaning the storage space
     that contains various training artifacts like checkpoints, data etc.
     """
-    if g_pathmgr.exists(dir):
+    if os.path.exists(dir):
         logging.info(f"Deleting directory: {dir}")
-        os.system(f"rm -rf {dir}")
+        shutil.rmtree(dir)
     logging.info(f"Deleted contents of directory: {dir}")
 
 
@@ -200,7 +201,7 @@ def get_file_size(filename):
     """
     Given a file, get the size of file in MB
     """
-    size_in_mb = os.path.getsize(filename) / float(1024 ** 2)
+    size_in_mb = os.path.getsize(filename) / float(1024**2)
     return size_in_mb
 
 

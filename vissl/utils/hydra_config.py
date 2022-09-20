@@ -2,8 +2,9 @@
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+import contextlib
 import logging
+import math
 import pprint
 import re
 import sys
@@ -103,6 +104,29 @@ def assert_hydra_dependency():
     assert is_hydra_available(), f"Make sure to install Hydra: {install_command}"
     upgrade_message = f"Please upgrade Hydra: {install_command}"
     assert get_hydra_version() >= min_hydra_version, upgrade_message
+
+
+@contextlib.contextmanager
+def initialize_hydra_config_module():
+    # Backward compatibility with previous hydra versions:
+    # In Hydra 1.1 and above, the compose API is not experimental anymore
+    if get_hydra_version() >= (1, 1, 0):
+        from hydra import initialize_config_module
+    else:
+        from hydra.experimental import initialize_config_module
+
+    with initialize_config_module(config_module="vissl.config"):
+        yield
+
+
+def hydra_compose(overrides: List[str]):
+    # Backward compatibility with previous hydra versions:
+    # In Hydra 1.1 and above, the compose API is not experimental anymore
+    if get_hydra_version() >= (1, 1, 0):
+        from hydra import compose
+    else:
+        from hydra.experimental import compose
+    return compose("defaults", overrides=overrides)
 
 
 def compose_hydra_configuration(overrides: List[str]):
@@ -293,7 +317,7 @@ def infer_learning_rate(cfg):
 
         scale_factor = float(batch_size) / base_lr_batch_size
         if scaling_type == "sqrt":
-            scale_factor = scale_factor ** 0.5
+            scale_factor = math.pow(scale_factor, 0.5)
         scaled_lr = base_lr * scale_factor
         cfg.OPTIMIZER.param_schedulers.lr = get_scaled_lr_scheduler(
             cfg, param_schedulers, scaled_lr
@@ -324,7 +348,7 @@ def infer_learning_rate(cfg):
 
         scale_factor = float(batch_size) / base_lr_batch_size
         if scaling_type == "sqrt":
-            scale_factor = scale_factor ** 0.5
+            scale_factor = math.pow(scale_factor, 0.5)
         scaled_lr = base_lr * scale_factor
         cfg.OPTIMIZER.param_schedulers.lr_head = get_scaled_lr_scheduler(
             cfg, param_schedulers, scaled_lr
@@ -351,14 +375,12 @@ def infer_losses_config(cfg):
     training in case user forgets to adjust all the parameters.
     """
     train_transforms = cfg.DATA.TRAIN.TRANSFORMS
-    total_num_crops = next(
-        (
-            transform["total_num_crops"]
-            for transform in train_transforms
-            if "total_num_crops" in transform
-        ),
-        None,
-    )
+    total_num_crops = None
+    multicrop_crops = []
+    for transform in train_transforms:
+        if "total_num_crops" in transform:
+            total_num_crops = transform["total_num_crops"]
+            multicrop_crops = transform["num_crops"]
 
     # some inference for the Info-NCE loss.
     if "simclr_info_nce_loss" in cfg.LOSS.name:
@@ -464,6 +486,27 @@ def infer_losses_config(cfg):
         cfg.LOSS.dino_loss.output_dim = cfg.MODEL.HEAD.PARAMS[0][1]["num_clusters"][0]
         cfg.LOSS.dino_loss.num_crops = total_num_crops or cfg.LOSS.dino_loss.num_crops
         cfg.DATA.TRAIN.COLLATE_FUNCTION = "multicrop_collator"
+
+    # some inference for the iBOT loss
+    if cfg.LOSS.name == "ibot_loss":
+        assert cfg.DATA.TRAIN.COLLATE_FUNCTION == "ibot_multicrop_masking_collator"
+        for transform in train_transforms:
+            is_vit = "vision_transformer" in cfg.MODEL.TRUNK.NAME
+            is_mim_transform = transform["name"] == "MaskedImageModeling"
+            if is_mim_transform and is_vit:
+                patch_size = cfg.MODEL.TRUNK.VISION_TRANSFORMERS.PATCH_SIZE
+                transform["patch_size"] = patch_size
+
+        # TODO(IBOT): the "num_clusters" use only works if the head is
+        #  shared between patch and class token (to enhance later)
+        assert len(cfg.MODEL.HEAD.PARAMS) == 1
+        assert cfg.MODEL.HEAD.PARAMS[0][0] in {"ibot_head"}
+        num_clusters = cfg.MODEL.HEAD.PARAMS[0][1]["out_dim"]
+        cfg.LOSS.ibot_loss.out_dim = num_clusters
+        cfg.LOSS.ibot_loss.patch_out_dim = num_clusters
+        cfg.LOSS.ibot_loss.num_epochs = cfg.OPTIMIZER.num_epochs
+        cfg.LOSS.ibot_loss.num_global_crops = multicrop_crops[0]
+        cfg.LOSS.ibot_loss.num_local_crops = total_num_crops - multicrop_crops[0]
 
     return cfg
 

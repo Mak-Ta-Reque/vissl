@@ -32,19 +32,19 @@ from vissl.utils.hydra_config import (
 from vissl.utils.instance_retrieval_utils.data_util import (
     CopyDaysDataset,
     GenericInstanceRetrievalDataset,
+    get_average_gem,
     InstanceRetrievalDataset,
     InstanceRetrievalImageLoader,
     InstreDataset,
-    MultigrainResize,
-    RevisitedInstanceRetrievalDataset,
-    WhiteningTrainingImageDataset,
-    get_average_gem,
     is_copdays_dataset,
     is_instre_dataset,
     is_oxford_paris_dataset,
     is_revisited_dataset,
     is_whiten_dataset,
     l2n,
+    MultigrainResize,
+    RevisitedInstanceRetrievalDataset,
+    WhiteningTrainingImageDataset,
 )
 from vissl.utils.instance_retrieval_utils.rmac import get_rmac_descriptors
 from vissl.utils.io import load_file, makedir, save_file
@@ -506,8 +506,8 @@ def compute_l2_distance_matrix(features_queries, features_dataset):
     """
     Computes the l2 distance of every query to every database image.
     """
-    sx = np.sum(features_queries ** 2, axis=1, keepdims=True)
-    sy = np.sum(features_dataset ** 2, axis=1, keepdims=True)
+    sx = np.sum(features_queries**2, axis=1, keepdims=True)
+    sy = np.sum(features_dataset**2, axis=1, keepdims=True)
 
     return np.sqrt(-2 * features_queries.dot(features_dataset.T) + sx + sy.T)
 
