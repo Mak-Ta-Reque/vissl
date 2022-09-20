@@ -229,7 +229,22 @@ class GenericSSLDataset(VisslDatasetBase):
         """
         local_rank, _ = get_machine_local_and_dist_rank()
         for idx, label_source in enumerate(self.label_sources):
-            if label_source == "disk_filelist":
+            if label_source == "disk_maskfilelist":
+                paths = self.label_paths[idx]
+                # in case of filelist, we support multiple label files.
+                # we rely on the user to have a proper collator to handle
+                # the multiple labels
+                logging.info(f"Loading labels: {paths}")
+                if isinstance(paths, list):
+                    labels = []
+                    for path in paths:
+                        path_labels = self.load_single_label_file(path)
+                        labels.append(path_labels)
+                else:
+                    labels = self.load_single_label_file(paths)
+                    # LOad the mask in the segmentation collator
+                    #labels = self._convert_to_numeric_ids(labels)
+            elif label_source == "disk_filelist":
                 paths = self.label_paths[idx]
                 # in case of filelist, we support multiple label files.
                 # we rely on the user to have a proper collator to handle

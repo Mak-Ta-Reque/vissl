@@ -14,7 +14,7 @@ config:
     NUM_DATALOADER_WORKERS: 0
     TRAIN:
       DATA_SOURCES: [disk_filelist]
-      LABEL_SOURCES: [disk_filelist]
+      LABEL_SOURCES: [disk_maskfilelist]
       DATASET_NAMES: [dummy_segmention_data]
       BATCHSIZE_PER_REPLICA: 2
       TRANSFORMS:
@@ -30,7 +30,7 @@ config:
       DATA_LIMIT: 4
     TEST:
       DATA_SOURCES: [disk_filelist]
-      LABEL_SOURCES: [disk_filelist]
+      LABEL_SOURCES: [disk_maskfilelist]
       DATASET_NAMES: [dummy_segmention_data]
       BATCHSIZE_PER_REPLICA: 2
       TRANSFORMS:
