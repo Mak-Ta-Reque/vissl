@@ -13,8 +13,10 @@ config:
   DATA:
     NUM_DATALOADER_WORKERS: 0
     TRAIN:
-      DATA_SOURCES: [synthetic]
-      BATCHSIZE_PER_REPLICA: 32
+      DATA_SOURCES: [disk_filelist]
+      LABEL_SOURCES: [disk_filelist]
+      DATASET_NAMES: [dummy_segmention_data]
+      BATCHSIZE_PER_REPLICA: 2
       TRANSFORMS:
         - name: RandomResizedCrop
           size: 224
@@ -25,10 +27,12 @@ config:
       MMAP_MODE: True
       COPY_TO_LOCAL_DISK: False
       COPY_DESTINATION_DIR: /tmp/imagenet1k/
-      DATA_LIMIT: 32
+      DATA_LIMIT: 4
     TEST:
-      DATA_SOURCES: [synthetic]
-      BATCHSIZE_PER_REPLICA: 32
+      DATA_SOURCES: [disk_filelist]
+      LABEL_SOURCES: [disk_filelist]
+      DATASET_NAMES: [dummy_segmention_data]
+      BATCHSIZE_PER_REPLICA: 2
       TRANSFORMS:
         - name: CenterCrop
           size: 224
@@ -39,7 +43,7 @@ config:
       MMAP_MODE: True
       COPY_TO_LOCAL_DISK: False
       COPY_DESTINATION_DIR: /tmp/imagenet1k/
-      DATA_LIMIT: 32
+      DATA_LIMIT: 4
   METERS:
     names: ["accuracy_list_meter"]
     accuracy_list_meter:

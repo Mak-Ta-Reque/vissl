@@ -1,1 +1,3 @@
-{"dummy_data_folder": {"train": ["/netscratch/kadir/content/dummy_data/train", "/netscratch/kadir/content/dummy_data/train"], "val": ["/netscratch/kadir/content/dummy_data/val", "/netscratch/kadir/content/dummy_data/val"]}}
+{"dummy_data_folder": {"train": ["/netscratch/kadir/content/dummy_data/train", "/netscratch/kadir/content/dummy_data/train"], "val": ["/netscratch/kadir/content/dummy_data/val", "/netscratch/kadir/content/dummy_data/val"]},
+"dummy_segmention_data": {"train": ["/tmp/images.npy", "/tmp/masks.npy"], "val": ["/tmp/images.npy", "/tmp/masks.npy"]}
+}
