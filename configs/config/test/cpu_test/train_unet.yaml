@@ -49,16 +49,10 @@ config:
       COLLATE_FUNCTION: mask_collator
       COLLATE_FUNCTION_PARAMS: {"transform": None, "mask_size": "(224, 224)"} 
   METERS:
-    names: ["accuracy_list_meter"]
-    accuracy_list_meter:
-      num_meters: 1
-      topk_values: [1, 5]
-    precision_at_k_list_meter:
-      num_meters: 1
-      topk_values: [1, 5]
-    recall_at_k_list_meter:
-      num_meters: 1
-      topk_values: [1, 5]
+    name: dice_score
+    dice_score:
+      n_classes: 1
+    
   TRAINER:
     TRAIN_STEP_NAME: standard_train_step
   MODEL:
@@ -83,7 +77,7 @@ config:
     name: sgd
     weight_decay: 0.0001
     momentum: 0.9
-    num_epochs: 2
+    num_epochs: 10
     nesterov: True
     regularize_bn: False
     regularize_bias: True
