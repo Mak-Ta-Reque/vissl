@@ -10,13 +10,19 @@ config:
   HOOKS:
     PERF_STATS:
       MONITOR_PERF_STATS: True
+      ROLLING_BTIME_FREQ: 313
+      PERF_STAT_FREQUENCY: 10
+    TENSORBOARD_SETUP:
+      USE_TENSORBOARD: True
+      EXPERIMENT_LOG_DIR:
+      FLUSH_EVERY_N_MIN: 20
   DATA:
     NUM_DATALOADER_WORKERS: 0
     TRAIN:
       DATA_SOURCES: [disk_filelist]
       LABEL_SOURCES: [disk_maskfilelist]
       DATASET_NAMES: [dummy_segmention_data]
-      BATCHSIZE_PER_REPLICA: 2
+      BATCHSIZE_PER_REPLICA: 4
       TRANSFORMS:
         - name: RandomResizedCrop
           size: 224
@@ -34,7 +40,7 @@ config:
       DATA_SOURCES: [disk_filelist]
       LABEL_SOURCES: [disk_maskfilelist]
       DATASET_NAMES: [dummy_segmention_data]
-      BATCHSIZE_PER_REPLICA: 2
+      BATCHSIZE_PER_REPLICA: 4
       TRANSFORMS:
         - name: CenterCrop
           size: 224
@@ -52,13 +58,14 @@ config:
     name: dice_score
     dice_score:
       n_classes: 1
+      threshold: 0.5
     
   TRAINER:
     TRAIN_STEP_NAME: standard_train_step
   MODEL:
     FEATURE_EVAL_SETTINGS:
-      EVAL_MODE_ON: True
-      EVAL_TRUNK_AND_HEAD: True
+      EVAL_MODE_ON: False
+      EVAL_TRUNK_AND_HEAD: False
     TRUNK:
       NAME: unet
       UNET:
@@ -77,7 +84,7 @@ config:
     name: sgd
     weight_decay: 0.0001
     momentum: 0.9
-    num_epochs: 10
+    num_epochs: 200
     nesterov: True
     regularize_bn: False
     regularize_bias: True
@@ -113,6 +120,6 @@ config:
   MACHINE:
     DEVICE: cpu
   CHECKPOINT:
-    DIR: "."
+    DIR: "/tmp/checkpoints"
     AUTO_RESUME: True
     CHECKPOINT_FREQUENCY: 1

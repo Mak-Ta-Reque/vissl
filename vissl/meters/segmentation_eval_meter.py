@@ -106,6 +106,7 @@ class DiceScore(ClassyMeter):
 
     def __init__(self, meters_config: AttrDict):
         self.num_classes = meters_config.get("n_classes")
+        self.threshold = meters_config.get("threshold") # Threshold for converting unet output to mask
         self._total_sample_count = None
         self._curr_sample_count = None
         self.reset()
@@ -252,7 +253,7 @@ class DiceScore(ClassyMeter):
         dice_scores = torch.zeros(1,self.num_classes)
 
         for cls in range(self.num_classes):
-            dice_scores[:,cls] = batch_evaluation(model_output[:,cls,:,:], target[:,cls,:,:], deepsupervision= False, threshold=0.5, n_classes=self.num_classes)
+            dice_scores[:,cls] = batch_evaluation(model_output[:,cls,:,:], target[:,cls,:,:], deepsupervision= False, threshold=self.threshold, n_classes=self.num_classes)
 
 
         if sample_count_so_far > 0:
