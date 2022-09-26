@@ -22,14 +22,14 @@ config:
       DATA_SOURCES: [disk_filelist]
       LABEL_SOURCES: [disk_maskfilelist]
       DATASET_NAMES: [dummy_segmention_data]
-      BATCHSIZE_PER_REPLICA: 4
+      BATCHSIZE_PER_REPLICA: 2
       TRANSFORMS:
         - name: RandomResizedCrop
           size: 224
         - name: ToTensor
         - name: Normalize
-          mean: [0.485, 0.456, 0.406]
-          std: [0.229, 0.224, 0.225]
+          mean: [0.485]
+          std: [0.229]
       MMAP_MODE: True
       COPY_TO_LOCAL_DISK: False
       COPY_DESTINATION_DIR: /tmp/imagenet1k/
@@ -40,14 +40,14 @@ config:
       DATA_SOURCES: [disk_filelist]
       LABEL_SOURCES: [disk_maskfilelist]
       DATASET_NAMES: [dummy_segmention_data]
-      BATCHSIZE_PER_REPLICA: 4
+      BATCHSIZE_PER_REPLICA: 2
       TRANSFORMS:
         - name: CenterCrop
           size: 224
         - name: ToTensor
         - name: Normalize
-          mean: [0.485, 0.456, 0.406]
-          std: [0.229, 0.224, 0.225]
+          mean: [0.485]
+          std: [0.229]
       MMAP_MODE: True
       COPY_TO_LOCAL_DISK: False
       COPY_DESTINATION_DIR: /tmp/imagenet1k/
@@ -57,8 +57,9 @@ config:
   METERS:
     name: dice_score
     dice_score:
-      n_classes: 1
+      n_classes: 8
       threshold: 0.5
+      deepsupervision: True
     
   TRAINER:
     TRAIN_STEP_NAME: standard_train_step
@@ -69,13 +70,19 @@ config:
     TRUNK:
       NAME: unet
       UNET:
-        n_channels: 3
-        n_classes: 1
+        n_channels: 1
+        n_classes: 8
         bilinear: True
     HEAD:
       PARAMS: [
         ["unet_head", {n_classes: 1}]
       ]
+    WEIGHTS_INIT:
+      PARAMS_FILE: /workspaces/vissl/.data/unet_best.pth
+      #
+      STATE_DICT_KEY_NAME: ""
+      APPEND_PREFIX: trunk.
+  INPUT_TYPE: L
   LOSS:
     name: cross_entropy_multiple_output_single_target
     cross_entropy_multiple_output_single_target:
