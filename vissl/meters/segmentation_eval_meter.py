@@ -47,26 +47,27 @@ def batch_evaluation(model_output, target, deepsupervision= False, threshold=0.5
     """
     Evaluation without the densecrf with the dice coefficient
     """
-  
+    masks_preds = model_output
+    true_masks = target
     tot = 0
     # compute loss
     if deepsupervision:
-        masks_preds = model_output
+       
         loss = 0
+
         for masks_pred in masks_preds:
             tot_cross_entropy = 0
-            for true_mask, pred in zip(target, masks_pred):
+            for true_mask, pred in zip(true_masks, masks_pred):
                 pred = (pred > threshold).float()
                 if n_classes > 1:
-                    sub_cross_entropy = F.cross_entropy(pred.unsqueeze(dim=0), target.unsqueeze(dim=0).squeeze(1)).item()
+                    sub_cross_entropy = F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0).squeeze(1)).item()
                 else:
-                    sub_cross_entropy = dice_coeff(pred, target.squeeze(dim=1)).item()
+                    sub_cross_entropy = dice_coeff(pred, true_mask.squeeze(dim=1)).item()
                 tot_cross_entropy += sub_cross_entropy
             tot_cross_entropy = tot_cross_entropy / len(masks_preds)
             tot += tot_cross_entropy
     else:
-        masks_pred = model_output
-        for true_mask, pred in zip(target, masks_pred):
+        for true_mask, pred in zip(true_masks, masks_pred):
             pred = (pred > threshold).float()
             if n_classes > 1:
                 tot += F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0).squeeze(1)).item()
@@ -75,6 +76,14 @@ def batch_evaluation(model_output, target, deepsupervision= False, threshold=0.5
 
 
     return tot/ model_output.shape[0]
+
+def dice_coefficient(pred, true, smooth=1e-15):
+    tot = 0.0
+    for p, t in zip(pred, true):
+        intersection = 2 * (torch.sum((torch.logical_and(t, p)))).item()
+        union = torch.sum(t).item() + torch.sum(p).item()
+        tot += (intersection + smooth) / (union + smooth)
+    return tot/ pred.shape[0]
 
 
 # Copyright (c) Facebook, Inc. and its affiliates.
@@ -109,6 +118,7 @@ class DiceScore(ClassyMeter):
         self.threshold = meters_config.get("threshold") # Threshold for converting unet output to mask
         self._total_sample_count = None
         self._curr_sample_count = None
+        self.deepsupervision = meters_config.get("deepsupervision")
         self.reset()
 
     @classmethod
@@ -140,7 +150,9 @@ class DiceScore(ClassyMeter):
         # unknown matrix = 0, 1 where 1 means that it's an unknown
         #unknown_matrix = torch.eq(self._targets, -1.0).float().detach().numpy()
         for cls_num in range(self.num_classes):
-            ap_matrix[cls_num] = self._scores[:,cls_num].mean().item()
+            avg_score = self._scores[:,cls_num].mean().item()
+            assert avg_score <= 1.0, " Calculation error in Dice score, dice score cant be largeer than 1.0" 
+            ap_matrix[cls_num] = avg_score
         return {"dice score": ap_matrix }
 
     def gather_scores(self, scores: torch.Tensor):
@@ -250,10 +262,16 @@ class DiceScore(ClassyMeter):
             int(self._curr_sample_count[0]), self.num_classes, dtype=torch.float32
         )
         
-        dice_scores = torch.zeros(1,self.num_classes)
+        dice_scores = torch.zeros(self.num_classes)
 
-        for cls in range(self.num_classes):
-            dice_scores[:,cls] = batch_evaluation(model_output[:,cls,:,:], target[:,cls,:,:], deepsupervision= False, threshold=self.threshold, n_classes=self.num_classes)
+        #for cls in range(self.num_classes):
+            #dice_scores[:,cls] = batch_evaluation(model_output[:,cls,:,:], target[:,cls,:,:], deepsupervision=self.deepsupervision, threshold=self.threshold, n_classes=self.num_classes)
+        model_output = model_output.permute(1,0,2,3)
+        for label, pred_mask in enumerate(model_output):
+            decoded_mask = torch.squeeze(target == label)
+            pred_mask = (pred_mask > self.threshold).float()
+
+            dice_scores[label] = dice_coefficient(pred_mask, decoded_mask)
 
 
         if sample_count_so_far > 0:
@@ -270,10 +288,10 @@ class DiceScore(ClassyMeter):
         assert len(target.shape) == 4, "target should be a 4D tensor"
         assert (
             model_output.shape[0] == target.shape[0]
-        ), "Expect same shape in model output and target"
+        ), "Expect same shape in model output and target.  Please check the ground truth dimention"
         assert (
-            model_output.shape[1] == target.shape[1]
-        ), "Expect same shape in model output and target"
+            model_output.shape[1] == self.num_classes
+        ), "Expect same shape in model output and mask in target"
         assert (
             model_output.shape[2] == target.shape[2]
         ), "Expect same shape in model output and target"
@@ -281,11 +299,9 @@ class DiceScore(ClassyMeter):
             model_output.shape[3] == target.shape[3]
         ), "Expect same shape in model output and target"
         num_classes = target.shape[1]
-        assert num_classes == self.num_classes, "number of classes is not consistent"
-
-
-
-
+        source = "'https://github.com/zonasw/unet-nested-multiple-classification/blob/master/losses.py'"
+        logging.info(f"Number of classes in the model output is {model_output.shape[1]} but the dataloader supply ony {num_classes} as as ground trth. The meter is followed from {source}")
+       
 
 def main():
     input_ = torch.zeros(2, 1, 224, 224)
