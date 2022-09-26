@@ -100,6 +100,7 @@ class UNet(nn.Module):
         self.up2 = Up(512, 128, self.bilinear)
         self.up3 = Up(256, 64, self.bilinear)
         self.up4 = Up(128, 64, self.bilinear)
+        self.outc = OutConv(64, self.n_classes)
 
     def forward(self, x: torch.Tensor, out_feat_keys: List[str]):
         x1 = self.inc(x)
@@ -111,5 +112,6 @@ class UNet(nn.Module):
         x = self.up2(x, x3)
         x = self.up3(x, x2)
         x = self.up4(x, x1)
+        x = self.outc(x)
         return [x]
 
