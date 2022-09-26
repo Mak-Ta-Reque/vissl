@@ -161,7 +161,8 @@ class DiskImageDataset(QueueDataset):
                     new_prefix=self._new_prefix,
                 )
                 with g_pathmgr.open(image_path, "rb") as fopen:
-                    img = Image.open(fopen).convert("RGB")
+                    img = Image.open(fopen).convert(self.cfg.INPUT_TYPE)
+                    #img = Image.open(fopen).convert("RGB")
             elif self.data_source == "disk_folder":
                 img = self.image_dataset[idx][0]
             elif self.data_source == "disk_roi_annotations":
