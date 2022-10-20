@@ -78,12 +78,11 @@ def batch_evaluation(model_output, target, deepsupervision= False, threshold=0.5
     return tot/ model_output.shape[0]
 
 def dice_coefficient(pred, true, smooth=1e-15):
-    tot = 0.0
-    for p, t in zip(pred, true):
-        intersection = 2 * (torch.sum((torch.logical_and(t, p)))).item()
-        union = torch.sum(t).item() + torch.sum(p).item()
-        tot += (intersection + smooth) / (union + smooth)
-    return tot/ pred.shape[0]
+    intersection = 2 * (torch.sum((torch.logical_and(true, pred)))).item()
+    union = torch.sum(true).item() + torch.sum(pred).item()
+    dice = (intersection + smooth) / (union + smooth)
+    return dice
+
 
 
 # Copyright (c) Facebook, Inc. and its affiliates.
@@ -267,9 +266,12 @@ class DiceScore(ClassyMeter):
         #for cls in range(self.num_classes):
             #dice_scores[:,cls] = batch_evaluation(model_output[:,cls,:,:], target[:,cls,:,:], deepsupervision=self.deepsupervision, threshold=self.threshold, n_classes=self.num_classes)
         model_output = model_output.permute(1,0,2,3)
+        mask_type = torch.float32 if self.num_classes == 1 else torch.long
+        
         for label, pred_mask in enumerate(model_output):
+            pred_mask = pred_mask.to(mask_type)
             decoded_mask = torch.squeeze(target == label)
-            pred_mask = (pred_mask > self.threshold).float()
+            pred_mask = torch.squeeze(pred_mask > self.threshold).float()
 
             dice_scores[label] = dice_coefficient(pred_mask, decoded_mask)
 
