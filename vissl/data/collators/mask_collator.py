@@ -35,7 +35,8 @@ def mask_collator(batch: List[Dict[str, Any]], mask_size: tuple, transform: Any,
     data = torch.stack([x["data"][0] for x in batch])
     data_valid = torch.stack([torch.tensor(x["data_valid"][0]) for x in batch])
     data_idx = torch.stack([torch.tensor(x["data_idx"][0]) for x in batch])
-    labels = torch.stack([x["label"][0] for x in batch])
+    #labels = torch.stack([x["label"][0] for x in batch])
+    labels = torch.cat([x["label"][0] for x in batch])
     output_batch = {
         "data": [data],
         "label": [labels],

@@ -2,7 +2,7 @@
 config:
   VERBOSE: True
   LOG_FREQUENCY: 100
-  TEST_ONLY: True
+  TEST_ONLY: False
   TEST_EVERY_NUM_EPOCH: 1
   TEST_MODEL: True
   SEED_VALUE: 1
@@ -22,7 +22,7 @@ config:
       DATA_SOURCES: [disk_filelist]
       LABEL_SOURCES: [disk_maskfilelist]
       DATASET_NAMES: [dummy_segmention_data]
-      BATCHSIZE_PER_REPLICA: 1
+      BATCHSIZE_PER_REPLICA: 2
       TRANSFORMS:
         - name: RandomResizedCrop
           size: 224
@@ -40,7 +40,7 @@ config:
       DATA_SOURCES: [disk_filelist]
       LABEL_SOURCES: [disk_maskfilelist]
       DATASET_NAMES: [dummy_segmention_data]
-      BATCHSIZE_PER_REPLICA: 1
+      BATCHSIZE_PER_REPLICA: 2
       TRANSFORMS:
         - name: CenterCrop
           size: 224
@@ -55,12 +55,10 @@ config:
       COLLATE_FUNCTION: mask_collator
       COLLATE_FUNCTION_PARAMS: {"transform": None, "mask_size": "(224, 224)"} 
   METERS:
-    name: dice_score
-    dice_score:
-      n_classes: 8
-      threshold: 0.5
-      deepsupervision: True
-    
+    name: hd95
+    hd95:
+      encoded_classes: [1, 2, 3, 4, 5, 6, 7, 8]
+      softmax: True    
   TRAINER:
     TRAIN_STEP_NAME: standard_train_step
   MODEL:
@@ -84,14 +82,14 @@ config:
       APPEND_PREFIX: trunk.
   INPUT_TYPE: L
   LOSS:
-    name: cross_entropy_multiple_output_single_target
+    name: dice_loss
     cross_entropy_multiple_output_single_target:
       ignore_index: -1
   OPTIMIZER:
     name: sgd
     weight_decay: 0.0001
     momentum: 0.9
-    num_epochs: 1
+    num_epochs: 100
     nesterov: True
     regularize_bn: False
     regularize_bias: True

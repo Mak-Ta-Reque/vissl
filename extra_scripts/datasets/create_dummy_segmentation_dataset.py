@@ -55,8 +55,8 @@ if __name__ == "__main__":
     Example usage:
 
     ```
-    python extra_scripts/datasets/create_clevr_dist_data_files.py -i /path/to/clevr/ \
-        -o /output_path/to/clevr_dist
+    python extra_scripts/datasets/create_dummy_segmentation_dataset.py -i /workspaces/vissl/.data \
+        -o /tmp
     ```
     """
     args = get_argument_parser().parse_args()

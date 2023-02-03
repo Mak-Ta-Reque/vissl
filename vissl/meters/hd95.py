@@ -1,97 +1,9 @@
+# Author: Md ABdul Kadir
 import torch.nn.functional as F
 import torch
+from medpy import metric
 from torch.autograd import Function
-import numpy as np
-print("The loss calculation is varified for n_channel = 1 output, for multiple chanel ooutput result is not varified")
-class DiceCoeff(Function):
-    """Dice coeff for individual examples"""
-
-    def forward(self, input, target):
-        self.save_for_backward(input, target)
-        eps = 0.0001
-        self.inter = torch.dot(input.view(-1), target.view(-1))
-        self.union = torch.sum(input) + torch.sum(target) + eps
-
-        t = (2 * self.inter.float() + eps) / self.union.float()
-        return t
-
-    # This function has only a single output, so it gets only one gradient
-    def backward(self, grad_output):
-
-        input, target = self.saved_variables
-        grad_input = grad_target = None
-
-        if self.needs_input_grad[0]:
-            grad_input = grad_output * 2 * (target * self.union - self.inter) \
-                         / (self.union * self.union)
-        if self.needs_input_grad[1]:
-            grad_target = None
-
-        return grad_input, grad_target
-
-
-def dice_coeff(input, target):
-    """Dice coeff for batches"""
-    if input.is_cuda:
-        s = torch.FloatTensor(1).cuda().zero_()
-    else:
-        s = torch.FloatTensor(1).zero_()
-
-    for i, c in enumerate(zip(input, target)):
-        s = s + DiceCoeff().forward(c[0], c[1])
-
-    return s / (i + 1)
-
-
-def batch_evaluation(model_output, target, deepsupervision= False, threshold=0.5, n_classes=1):
-    """
-    Evaluation without the densecrf with the dice coefficient
-    """
-    masks_preds = model_output
-    true_masks = target
-    tot = 0
-    # compute loss
-    if deepsupervision:
-       
-        loss = 0
-
-        for masks_pred in masks_preds:
-            tot_cross_entropy = 0
-            for true_mask, pred in zip(true_masks, masks_pred):
-                pred = (pred > threshold).float()
-                if n_classes > 1:
-                    sub_cross_entropy = F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0).squeeze(1)).item()
-                else:
-                    sub_cross_entropy = dice_coeff(pred, true_mask.squeeze(dim=1)).item()
-                tot_cross_entropy += sub_cross_entropy
-            tot_cross_entropy = tot_cross_entropy / len(masks_preds)
-            tot += tot_cross_entropy
-    else:
-        for true_mask, pred in zip(true_masks, masks_pred):
-            pred = (pred > threshold).float()
-            if n_classes > 1:
-                tot += F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0).squeeze(1)).item()
-            else:
-                tot += dice_coeff(pred, true_mask.squeeze(dim=1)).item()
-
-
-    return tot/ model_output.shape[0]
-
-def dice_coefficient(pred, true, smooth=1e-15):
-    intersection = 2 * (torch.sum((torch.logical_and(true, pred)))).item()
-    union = torch.sum(true).item() + torch.sum(pred).item()
-    dice = (intersection + smooth) / (union + smooth)
-    return dice
-
-
-
-# Copyright (c) Facebook, Inc. and its affiliates.
-
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-
 import logging
-
 import numpy as np
 import torch
 from classy_vision.generic.distributed_util import all_reduce_sum, gather_from_all
@@ -100,24 +12,24 @@ from vissl.config import AttrDict
 from vissl.utils.env import get_machine_local_and_dist_rank
 from vissl.utils.svm_utils.evaluate import get_precision_recall
 
-
-@register_meter("dice_score")
-class DiceScore(ClassyMeter):
+@register_meter("hd95")
+class HD95(ClassyMeter):
     """
-    Meter to calculate mean AP metric for multi-label image classification task.
+    Meter to calculate HD95 metric for multi-label image segmention task.
 
     Args:
         meters_config (AttrDict): config containing the meter settings
 
-    meters_config should specify the num_classes
+    meters_config should specify the encoded_classes
     """
 
     def __init__(self, meters_config: AttrDict):
-        self.num_classes = meters_config.get("n_classes")
+        self.encoded_classes = meters_config.get("encoded_classes")
+        self.num_classes = len(self.encoded_classes)
+        self._softmax = meters_config.get("softmax", True)
         self.threshold = meters_config.get("threshold") # Threshold for converting unet output to mask
         self._total_sample_count = None
         self._curr_sample_count = None
-        self.deepsupervision = meters_config.get("deepsupervision")
         self.reset()
 
     @classmethod
@@ -132,27 +44,27 @@ class DiceScore(ClassyMeter):
         """
         Name of the meter
         """
-        return "mean_dice_index_meter"
+        return "hd95"
 
     @property
     def value(self):
         """
-        Value of the meter globally synced. mean AP and AP for each class is returned
+        Value of the meter globally synced.
         """
         _, distributed_rank = get_machine_local_and_dist_rank()
         logging.info(
-            f"Rank: {distributed_rank} Mean dice score meter: "
+            f"Rank: {distributed_rank} hd95 meter: "
             f"scores: {self._scores.shape}"
         )
-        ap_matrix = {k:0 for k in range(self.num_classes)}#torch.ones(self.num_classes, dtype=torch.float32) * -1
+        ap_matrix = {k:0 for k in range(len(self.encoded_classes))}#torch.ones(self.num_classes, dtype=torch.float32) * -1
         # targets matrix = 0, 1, -1
         # unknown matrix = 0, 1 where 1 means that it's an unknown
         #unknown_matrix = torch.eq(self._targets, -1.0).float().detach().numpy()
-        for cls_num in range(self.num_classes):
+        for cls_num in range(len(self.encoded_classes)):
             avg_score = self._scores[:,cls_num].mean().item()
-            assert avg_score <= 1.0, " Calculation error in Dice score, dice score cant be largeer than 1.0" 
+            #assert avg_score <= 1.0, " Calculation error in Dice score, dice score cant be largeer than 1.0" 
             ap_matrix[cls_num] = avg_score
-        return {"dice score": ap_matrix }
+        return {"hd95 score": ap_matrix }
 
     def gather_scores(self, scores: torch.Tensor):
         """
@@ -247,15 +159,30 @@ class DiceScore(ClassyMeter):
         assert max_ <= 1.0, "Target max values should be <= 1.0"
         assert min_ >= 0.0, "Target min values should be >= 0.0"
     
+    def calculate_metric_percase(self, pred, gt):
+        pred[pred > 0] = 1
+        gt[gt > 0] = 1
+        if pred.sum() > 0 and gt.sum()>0:
+            #dice = metric.binary.dc(pred, gt)
+            hd95 = metric.binary.hd95(pred, gt)
+            return hd95
+        elif pred.sum() > 0 and gt.sum()==0:
+            return 0
+        else:
+            return 0
 
     def update(self, model_output, target):
         """
         Update the scores and targets
         """
+        
+        if self._softmax:
+            model_output = torch.softmax(model_output, dim=1)
 
+        
+        model_output = torch.argmax(model_output, dim=1)
         self.validate(model_output, target)
         self.verify_target(target)
-
         self._curr_sample_count += model_output.shape[0]
         curr_dice_scores = self._scores
         sample_count_so_far = curr_dice_scores.shape[0]
@@ -267,16 +194,23 @@ class DiceScore(ClassyMeter):
 
         #for cls in range(self.num_classes):
             #dice_scores[:,cls] = batch_evaluation(model_output[:,cls,:,:], target[:,cls,:,:], deepsupervision=self.deepsupervision, threshold=self.threshold, n_classes=self.num_classes)
-        model_output = model_output.permute(1,0,2,3)
-        mask_type = torch.float32 if self.num_classes == 1 else torch.long
+        #model_output = model_output.permute(1,0,2,3)
+        #mask_type = torch.float32 if self.num_classes == 1 else torch.long
         
-        for label, pred_mask in enumerate(model_output):
-            pred_mask = pred_mask.to(mask_type)
-            decoded_mask = torch.squeeze(target == label)
-            pred_mask = torch.squeeze(pred_mask > self.threshold).float()
+        #for label, pred_mask in enumerate(model_output):
+        #    pred_mask = pred_mask.to(mask_type)
+        #    decoded_mask = torch.squeeze(target == label)
+        #    pred_mask = torch.squeeze(pred_mask > self.threshold).float()
 
-            dice_scores[label] = dice_coefficient(pred_mask, decoded_mask)
+        #    dice_scores[label] = dice_coefficient(pred_mask, decoded_mask)
 
+        for i in range(1, self.num_classes):
+            score = self.calculate_metric_percase(model_output == i, target == i)
+            #pred_mask = pred_mask.to(mask_type)
+            #decoded_mask = torch.squeeze(target == label)
+            #pred_mask = torch.squeeze(pred_mask > self.threshold).float()
+
+            dice_scores[i -1] = score
 
         if sample_count_so_far > 0:
             self._scores[:sample_count_so_far, :] = curr_dice_scores
@@ -288,23 +222,23 @@ class DiceScore(ClassyMeter):
         """
         Validate that the input to meter is valid
         """
-        assert len(model_output.shape) == 4, "model_output should be a 4D tensor"
-        assert len(target.shape) == 4, "target should be a 4D tensor"
+        assert len(model_output.shape) == 3, "model_output should be a 3D encoded tensor"
+        assert len(target.shape) == 3, "target should be a 3Dencoded tensor"
         assert (
             model_output.shape[0] == target.shape[0]
         ), "Expect same shape in model output and target.  Please check the ground truth dimention"
         assert (
-            model_output.shape[1] == self.num_classes
+            model_output.shape[0] == target.shape[0]
         ), "Expect same shape in model output and mask in target"
+        assert (
+            model_output.shape[1] == target.shape[1]
+        ), "Expect same shape in model output and target"
         assert (
             model_output.shape[2] == target.shape[2]
         ), "Expect same shape in model output and target"
-        assert (
-            model_output.shape[3] == target.shape[3]
-        ), "Expect same shape in model output and target"
         num_classes = target.shape[1]
-        source = "'https://github.com/zonasw/unet-nested-multiple-classification/blob/master/losses.py'"
-        logging.info(f"Number of classes in the model output is {model_output.shape[1]} but the dataloader supply ony {num_classes} as as ground trth. The meter is followed from {source}")
+        source = "'https://github.com/tifat58/TransUNet/blob/d68a53a2da73ecb496bb7585340eb660ecda1d59/utils.py'"
+        logging.info(f"Number of classes in the model output is {torch.max(model_output)} but the dataloader supply ony {num_classes} as as ground trth. The meter is followed from {source}")
        
 
 def main():
