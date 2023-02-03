@@ -55,10 +55,14 @@ config:
       COLLATE_FUNCTION: mask_collator
       COLLATE_FUNCTION_PARAMS: {"transform": None, "mask_size": "(224, 224)"} 
   METERS:
-    name: hd95
+    names: ["hd95", "dice"]
     hd95:
       encoded_classes: [1, 2, 3, 4, 5, 6, 7, 8]
-      softmax: True    
+      softmax: True
+    dice:
+      encoded_classes: [1, 2, 3, 4, 5, 6, 7, 8]
+      softmax: True
+
   TRAINER:
     TRAIN_STEP_NAME: standard_train_step
   MODEL:

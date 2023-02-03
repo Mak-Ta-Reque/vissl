@@ -12,10 +12,10 @@ from vissl.config import AttrDict
 from vissl.utils.env import get_machine_local_and_dist_rank
 from vissl.utils.svm_utils.evaluate import get_precision_recall
 
-@register_meter("hd95")
-class HD95(ClassyMeter):
+@register_meter("dice")
+class Dice(ClassyMeter):
     """
-    Meter to calculate HD95 metric for multi-label image segmention task.
+    Meter to calculate dice metric for multi-label image segmention task.
 
     Args:
         meters_config (AttrDict): config containing the meter settings
@@ -44,7 +44,7 @@ class HD95(ClassyMeter):
         """
         Name of the meter
         """
-        return "hd95"
+        return "dice"
 
     @property
     def value(self):
@@ -53,7 +53,7 @@ class HD95(ClassyMeter):
         """
         _, distributed_rank = get_machine_local_and_dist_rank()
         logging.info(
-            f"Rank: {distributed_rank} hd95 meter: "
+            f"Rank: {distributed_rank} dice meter: "
             f"scores: {self._scores.shape}"
         )
         ap_matrix = {k:0 for k in range(len(self.encoded_classes))}#torch.ones(self.num_classes, dtype=torch.float32) * -1
@@ -64,7 +64,7 @@ class HD95(ClassyMeter):
             avg_score = self._scores[:,cls_num].mean().item()
             #assert avg_score <= 1.0, " Calculation error in Dice score, dice score cant be largeer than 1.0" 
             ap_matrix[cls_num] = avg_score
-        return {"hd95 score": ap_matrix }
+        return {"dice score": ap_matrix }
 
     def gather_scores(self, scores: torch.Tensor):
         """
@@ -163,11 +163,11 @@ class HD95(ClassyMeter):
         pred[pred > 0] = 1
         gt[gt > 0] = 1
         if pred.sum() > 0 and gt.sum()>0:
-            #dice = metric.binary.dc(pred, gt)
-            hd95 = metric.binary.hd95(pred, gt)
-            return hd95
+            dice = metric.binary.dc(pred, gt)
+            #hd95 = metric.binary.hd95(pred, gt)
+            return dice
         elif pred.sum() > 0 and gt.sum()==0:
-            return 0
+            return 1
         else:
             return 0
 
