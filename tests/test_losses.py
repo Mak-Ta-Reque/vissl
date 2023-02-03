@@ -6,7 +6,7 @@
 import logging
 import unittest
 from collections import namedtuple
-
+from typing import List
 import torch
 import torch.nn as nn
 from classy_vision.generic.distributed_util import set_cpu_device
@@ -20,7 +20,7 @@ from vissl.losses.cross_entropy_multiple_output_single_target import (
 from vissl.losses.multicrop_simclr_info_nce_loss import MultiCropSimclrInfoNCECriterion
 from vissl.losses.simclr_info_nce_loss import SimclrInfoNCECriterion
 from vissl.losses.swav_loss import SwAVCriterion
-
+from vissl.losses.dice_loss import DiceLossCriterion
 
 logger = logging.getLogger("__name__")
 
@@ -263,3 +263,56 @@ class TestCrossEntropyMultipleOutputSingleTargetLoss(unittest.TestCase):
         )
         criterion = CrossEntropyMultipleOutputSingleTargetLoss(config)
         self.assertEqual(criterion(logits, target), criterion_ref(logits, target))
+
+class DiceLoss(unittest.TestCase):
+    @parameterized.expand(
+        [param(output_size = (224, 224), classes = [1,2], weight = None, batch_size=1), param(output_size = (224, 224), classes = [1,2], weight = None, batch_size=10),
+         param(output_size = (224, 224), classes = [4,2], weight = None, batch_size=8), param(output_size = (223, 224), classes = [4,2], weight = None, batch_size=8),
+         param(output_size = (224, 224), classes = [4,2,3], weight = [1, 1, 1], batch_size=8)])
+
+    def test_multiclass_output_multiclass_target(self, output_size: tuple, classes: List,  weight: List, batch_size: int):
+        torch.random.manual_seed(0)
+        # Generate a (batch_size, n_classes, output_size ) output tensoor
+        
+        output =  torch.ones(size=output_size)
+        output = output.unsqueeze(0)
+        output_list = [output] * 20
+        output = torch.cat(output_list, dim=0)
+        output = output.unsqueeze(0)
+        output_list = [output] * batch_size
+        output = torch.cat(output_list, dim=0)
+
+        target = torch.ones(size=output_size) * 2
+        target = target.unsqueeze(0)
+        target_list = [target] * batch_size
+        target = torch.cat(target_list, dim=0)
+        criterion = DiceLossCriterion(class_codes=classes, softmax=False, weight= weight, smooth=0.000001)
+        
+        self.assertEqual(criterion(output, target), 1.0 - (1.0/ len(classes))) # Mask available for one class among many classes. Thats why 1 - 1.0/ len(claases)
+
+    @parameterized.expand(
+        [param(output_size = (224, 224), classes = [1], weight = None, batch_size=1), param(output_size = (224, 224), classes = [1], weight= None, batch_size=10)])
+
+    def test_singl_class_output_single_class_target(self, output_size: tuple, classes: List,  weight: List, batch_size: int):
+        torch.random.manual_seed(0)
+        # Generate a (batch_size, len(classes), output_size ) output tensoor
+        
+        output =  torch.ones(size=output_size)
+        output = output.unsqueeze(0) # 1, 224, 224
+        #output_list = [output] 
+        output = output.unsqueeze(0) # 1, 1, 224,224
+        output = [output] * batch_size #[(1, 1, 224,224), (1, 1, 224,224),...]
+        output = torch.cat(output, dim=0)
+
+       
+        target = torch.zeros(size=output_size) # 224, 224
+        target = target.unsqueeze(0) # 1, 224, 224
+        target = [target] * batch_size 
+        target = torch.cat(target, dim=0)
+
+    
+
+        criterion = DiceLossCriterion(class_codes=classes, softmax=False, weight= [1], smooth=0.00000000001)
+        
+        
+        self.assertAlmostEqual(criterion(output, target).item(), 1.0)

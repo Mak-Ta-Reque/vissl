@@ -15,7 +15,7 @@ class DiceLossCriterion(nn.Module):
         self.weight = weight
         self.smooth = smooth
         self.softmax = softmax
-        if len(self.weight) != len(self.classes): raise Exception(f"Dimention miss match between class_codes and weight,\
+        if self.weight and len(self.weight) != len(self.classes): raise Exception(f"Dimention miss match between class_codes and weight,\
              e. g: {len(self.weight)} and {len(self.classes)}")
 
     def _one_hot_encoder(self, input_tensor):
@@ -40,8 +40,9 @@ class DiceLossCriterion(nn.Module):
             inputs = torch.softmax(inputs, dim=1)
         target = self._one_hot_encoder(target)
         if self.weight is None:
-            weight = [1] * len(self.classes)
-        assert inputs.size() == target.size(), 'predict {} & target {} shape do not match'.format(inputs.size(), target.size())
+            self.weight = [1] * len(self.classes)
+        
+        assert inputs.size()[2:4] == target.size()[2:4], 'predict {} & target {} shape do not match'.format(inputs.size(), target.size())
         class_wise_dice = []
         loss = 0.0
         for i in range(0, len(self.classes)):

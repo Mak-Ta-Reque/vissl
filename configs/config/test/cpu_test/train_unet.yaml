@@ -2,7 +2,7 @@
 config:
   VERBOSE: True
   LOG_FREQUENCY: 100
-  TEST_ONLY: False
+  TEST_ONLY: True
   TEST_EVERY_NUM_EPOCH: 1
   TEST_MODEL: True
   SEED_VALUE: 1
@@ -22,7 +22,7 @@ config:
       DATA_SOURCES: [disk_filelist]
       LABEL_SOURCES: [disk_maskfilelist]
       DATASET_NAMES: [dummy_segmention_data]
-      BATCHSIZE_PER_REPLICA: 2
+      BATCHSIZE_PER_REPLICA: 1
       TRANSFORMS:
         - name: RandomResizedCrop
           size: 224
@@ -40,7 +40,7 @@ config:
       DATA_SOURCES: [disk_filelist]
       LABEL_SOURCES: [disk_maskfilelist]
       DATASET_NAMES: [dummy_segmention_data]
-      BATCHSIZE_PER_REPLICA: 2
+      BATCHSIZE_PER_REPLICA: 1
       TRANSFORMS:
         - name: CenterCrop
           size: 224
@@ -91,7 +91,7 @@ config:
     name: sgd
     weight_decay: 0.0001
     momentum: 0.9
-    num_epochs: 200
+    num_epochs: 1
     nesterov: True
     regularize_bn: False
     regularize_bias: True
